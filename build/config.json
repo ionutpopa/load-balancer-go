@@ -1,0 +1,7 @@
+{
+    "targets": [
+        "http://host.docker.internal:8081",
+        "http://host.docker.internal:8082",
+        "http://host.docker.internal:8083"
+    ]
+}
