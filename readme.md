@@ -14,3 +14,19 @@ Please pay attention to comments.
 4. Run in terminal this command a few times: 'curl http://localhost:8080'. You will see how in the terminal logs the backend port where the request was proxyied.
 
 Please feel free to implement health checks, handle retries on failure, modify headers and let me know for any other idea, I made this because I was bored and wanted to understand how a load balancer works, I know using Round Robin algorithm is not the best option but I want to stick with that for now.
+
+How to run tests:
+# Run all tests
+go test -v
+
+# Run specific test
+go test -run TestServeHTTP -v
+
+# Run benchmarks
+go test -bench=. -v
+
+# Run with race detection
+go test -race -v
+
+# Generate coverage report
+go test -cover -v
