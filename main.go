@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 func printConfigAsJSON(config any) (string, error) {
@@ -49,34 +51,52 @@ func loadConfig(configPath string) (*types.Config, error) {
 }
 
 func main() {
+	// Initialize logging system with log directory
 	if err := logger.InitLogger("logs"); err != nil {
 		panic(fmt.Sprintf("could not initialize logger: %v", err))
 	}
 
-	config, loadConfigErr := loadConfig("./configs/config.json")
-
-	if loadConfigErr != nil {
-		logger.Error("Error when loading config.json: %v", loadConfigErr)
+	// Load configuration from JSON file
+	config, err := loadConfig("./configs/config.json")
+	if err != nil {
+		logger.Error("Error when loading config.json: %v", err)
 	}
 
-	toLogConfig, toLogConfigErr := printConfigAsJSON(config)
-
-	if toLogConfigErr != nil {
-		logger.Error("Error when pretty printing config.json: %v", toLogConfigErr)
-	}
+	// Convert config to JSON for logging purposes
+	toLogConfig, _ := printConfigAsJSON(config)
 
 	logger.Info("Load Balancer Started")
 	logger.Info("Config content: %v", toLogConfig)
 
-	lb, err := loadbalancer.NewLoadBalancer(config.Targets)
+	// Create new load balancer instance with health check options
+	lb, err := loadbalancer.NewLoadBalancer(
+		config.Targets, // Array of target server URLs
+		loadbalancer.Options{
+			HealthPath:     "/healthz",             // Endpoint to check for health
+			Interval:       2 * time.Second,        // How often to check health
+			Timeout:        800 * time.Millisecond, // Request timeout for health checks
+			UnhealthyAfter: 3,                      // Mark unhealthy after 3 consecutive failures
+			HealthyAfter:   2,                      // Mark healthy after 2 consecutive successes
+		},
+	)
 	if err != nil {
 		logger.Error("Failed to create load balancer: %v", err)
 		return
 	}
 
+	// Start background health checking with cancellation context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	lb.StartHealthChecks(ctx)
+
+	// Start HTTP server on port 8080
 	port := ":8080"
 	logger.Info("Listening on %s", port)
 	if err := http.ListenAndServe(port, lb); err != nil {
 		logger.Error("Server failed: %v", err)
 	}
+
+	go func() {
+		lb.StartStatusLogging(ctx, 30*time.Second) // Log every 30 seconds
+	}()
 }
