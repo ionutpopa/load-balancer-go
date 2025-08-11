@@ -30,3 +30,6 @@ go test -race -v
 
 # Generate coverage report
 go test -cover -v
+
+Build in C Go: go env -w CGO_ENABLED=1 and then go build -o loadbalancer-go.exe ./main.go
+Build simply: go build -o loadbalancer-go.exe ./main.go
